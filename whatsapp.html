@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Catálogo Digital | Construmega</title>
+<meta name="description" content="Catálogo digital de materiales de construcción, gas, agua, calefacción y drenaje. Pedidos directos por WhatsApp.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { poppins: ['Poppins', 'sans-serif'] },
+        colors: {
+          azul: '#1F6FB2',
+          verde: '#1EA952',
+          'verde-dark': '#17843F',
+          rojo: '#E23744',
+          texto: '#2B2D32'
+        }
+      }
+    }
+  }
+</script>
+
+<style>
+  * { -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Poppins', sans-serif; }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  input:focus-visible, button:focus-visible {
+    outline: 2px solid #1F6FB2;
+    outline-offset: 2px;
+  }
+</style>
+</head>
+<body class="bg-[#F5F7F8] text-texto min-h-screen pb-8">
+
+<!-- ===================== HEADER FIJO ===================== -->
+<header class="sticky top-0 z-30 bg-white shadow-sm">
+  <div class="px-4 pt-3 pb-2">
+    <h1 class="text-lg font-bold leading-tight">Catálogo Digital</h1>
+    <p class="text-xs text-texto/60 leading-tight">Materiales de construcción y calefacción</p>
+  </div>
+
+  <!-- Buscador en tiempo real -->
+  <div class="px-4 pb-3">
+    <div class="relative">
+      <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-texto/40" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/>
+      </svg>
+      <input
+        id="search-input"
+        type="text"
+        inputmode="search"
+        placeholder="Buscar por nombre o código..."
+        class="w-full bg-[#F0F1F2] rounded-full pl-9 pr-4 py-2.5 text-sm placeholder:text-texto/40 focus:bg-white focus:ring-2 focus:ring-azul outline-none transition-colors"
+        aria-label="Buscar producto por nombre o código"
+      >
+    </div>
+  </div>
+</header>
+
+<!-- ===================== ESTADO DE CARGA ===================== -->
+<div id="loading-state" class="flex flex-col items-center justify-center py-20">
+  <svg class="animate-spin w-8 h-8 text-azul" fill="none" viewBox="0 0 24 24">
+    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+  </svg>
+  <p class="text-xs text-texto/50 mt-3">Cargando productos...</p>
+</div>
+
+<!-- ===================== ESTADO DE ERROR ===================== -->
+<div id="error-state" class="hidden flex-col items-center justify-center text-center py-20 px-6">
+  <svg class="w-10 h-10 text-rojo mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12v-.008zM21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+  </svg>
+  <p class="font-semibold text-sm">No pudimos cargar el catálogo</p>
+  <p class="text-xs text-texto/50 mt-1 mb-4">Verificá que <code class="bg-texto/5 px-1 rounded">productos.json</code> esté en la misma carpeta que este archivo.</p>
+  <button id="retry-btn" class="text-xs font-semibold text-white bg-azul px-4 py-2 rounded-full">Reintentar</button>
+</div>
+
+<!-- ===================== RESULTADOS ===================== -->
+<main class="px-4 pt-4">
+  <p id="results-count" class="hidden text-xs text-texto/50 mb-3"></p>
+  <section id="product-grid" class="hidden grid grid-cols-2 gap-3">
+    <!-- Tarjetas de producto inyectadas con JS -->
+  </section>
+
+  <div id="empty-state" class="hidden flex-col items-center justify-center text-center py-16">
+    <svg class="w-12 h-12 text-texto/20 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/>
+    </svg>
+    <p class="font-semibold text-sm">No encontramos ese producto</p>
+    <p class="text-xs text-texto/50 mt-1">Probá con otro nombre o código.</p>
+  </div>
+</main>
+
+<!-- Tarjeta de producto: plantilla clonable -->
+<template id="card-template">
+  <article class="bg-white rounded-2xl overflow-hidden shadow-sm border border-texto/5 flex flex-col">
+    <div class="relative aspect-square bg-[#F0F1F2] flex items-center justify-center">
+      <img class="card-img w-full h-full object-contain p-2" src="" alt="" loading="lazy">
+      <span class="card-badge hidden absolute top-2 left-2 text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full shadow"></span>
+    </div>
+    <div class="px-2.5 pt-2 flex-1">
+      <p class="card-code text-[11px] font-bold text-texto/45 tracking-wide"></p>
+      <h3 class="card-name text-sm font-semibold leading-snug line-clamp-2 min-h-[2.5rem] mt-0.5"></h3>
+      <p class="card-brand text-[11px] text-texto/50 mt-0.5"></p>
+    </div>
+    <div class="px-2.5 pb-2.5 mt-1.5">
+      <p class="card-price mb-2"></p>
+      <button class="card-whatsapp-btn w-full flex items-center justify-center gap-1.5 bg-verde hover:bg-verde-dark active:scale-[0.97] transition-all text-white text-xs font-semibold py-2.5 rounded-lg">
+        <svg class="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.46 1.32 4.96L2.05 22l5.25-1.38a9.87 9.87 0 004.74 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0012.04 2m0 1.67c2.22 0 4.3.87 5.87 2.44a8.26 8.26 0 012.43 5.8c0 4.55-3.7 8.25-8.26 8.25a8.2 8.2 0 01-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.18 8.18 0 01-1.26-4.38c0-4.56 3.71-8.25 8.21-8.25m-4.54 4.72c-.16 0-.42.06-.64.3s-.85.83-.85 2.02.87 2.35.99 2.51c.12.16 1.7 2.72 4.23 3.7 2.1.82 2.52.66 2.98.62.46-.04 1.48-.6 1.69-1.19.21-.58.21-1.08.15-1.19-.06-.1-.22-.16-.46-.28s-1.48-.73-1.71-.81c-.23-.08-.4-.12-.56.12-.16.24-.64.81-.79.98-.15.16-.29.18-.53.06-.24-.12-1.03-.38-1.96-1.21-.72-.65-1.21-1.44-1.35-1.68-.14-.24-.02-.37.11-.49.11-.11.24-.28.36-.42.11-.14.15-.24.23-.4.08-.16.04-.3-.02-.42-.06-.12-.55-1.35-.77-1.84-.2-.48-.4-.42-.56-.42h-.34" /></svg>
+        Pedir por WhatsApp
+      </button>
+    </div>
+  </article>
+</template>
+
+<script>
+(function () {
+  'use strict';
+
+  const WHATSAPP_NUMBER = '59168729729';
+  const PRODUCTS_URL = 'productos.json';
+  const IMG_BASE_URL = 'https://jonasconstrumega-dot.github.io/doctor_web/img.github/';
+
+  // Imagen de respaldo autocontenida (SVG en data URI) — no depende de red externa
+  const FALLBACK_IMG = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">' +
+      '<rect width="200" height="200" fill="#F0F1F2"/>' +
+      '<path d="M60 130 L85 100 L105 122 L130 90 L150 130 Z" fill="#D8DADC"/>' +
+      '<circle cx="80" cy="75" r="12" fill="#D8DADC"/>' +
+      '<text x="100" y="165" font-family="sans-serif" font-size="13" fill="#9AA0A6" text-anchor="middle">Sin imagen</text>' +
+    '</svg>'
+  );
+
+  // ---------------------------------------------------------------
+  // 1. ESTADO
+  // ---------------------------------------------------------------
+  let PRODUCTS = [];
+  let searchTerm = '';
+
+  // ---------------------------------------------------------------
+  // 2. REFERENCIAS DEL DOM
+  // ---------------------------------------------------------------
+  const grid = document.getElementById('product-grid');
+  const cardTemplate = document.getElementById('card-template');
+  const emptyState = document.getElementById('empty-state');
+  const loadingState = document.getElementById('loading-state');
+  const errorState = document.getElementById('error-state');
+  const resultsCount = document.getElementById('results-count');
+  const searchInput = document.getElementById('search-input');
+  const retryBtn = document.getElementById('retry-btn');
+
+  // ---------------------------------------------------------------
+  // 3. UTILIDADES
+  // ---------------------------------------------------------------
+  function formatPrecio(valor) {
+    return 'Bs ' + Number(valor).toLocaleString('es-BO');
+  }
+
+  function getPrecioFinal(producto) {
+    const descuento = Number(producto.descuento) || 0;
+    if (descuento > 0 && producto.precio > 0) {
+      return Math.round(producto.precio * (1 - descuento / 100));
+    }
+    return producto.precio;
+  }
+
+  function getBadge(producto) {
+    if (Number(producto.descuento) > 0) return { label: 'OFERTA', classes: 'bg-rojo text-white' };
+    if (producto.destacado) return { label: 'TOP', classes: 'bg-azul text-white' };
+    return null;
+  }
+
+  function buildWhatsappUrl(producto) {
+    const precioFinal = getPrecioFinal(producto);
+    const precioTexto = precioFinal > 0 ? formatPrecio(precioFinal) + '.' : 'A consultar';
+    const mensaje =
+      '📱 *NUEVO PEDIDO*\n' +
+      '*Producto:* ' + producto.nombre + '\n' +
+      '*Código:* ' + producto.codigo + '\n' +
+      '*Precio:* ' + precioTexto;
+    return 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(mensaje);
+  }
+
+  // ---------------------------------------------------------------
+  // 4. RENDER DE PRODUCTOS
+  // ---------------------------------------------------------------
+  function getFilteredProducts() {
+    const term = searchTerm.trim().toLowerCase();
+    if (!term) return PRODUCTS;
+    return PRODUCTS.filter(function (p) {
+      return (p.nombre || '').toLowerCase().includes(term) ||
+             (p.codigo || '').toLowerCase().includes(term);
+    });
+  }
+
+  function renderProducts() {
+    const list = getFilteredProducts();
+    grid.innerHTML = '';
+
+    resultsCount.textContent = list.length + (list.length === 1 ? ' producto encontrado' : ' productos encontrados');
+
+    if (list.length === 0) {
+      emptyState.classList.remove('hidden');
+      emptyState.classList.add('flex');
+      grid.classList.add('hidden');
+      return;
+    }
+    emptyState.classList.add('hidden');
+    emptyState.classList.remove('flex');
+    grid.classList.remove('hidden');
+
+    list.forEach(function (producto) {
+      const node = cardTemplate.content.cloneNode(true);
+
+      const img = node.querySelector('.card-img');
+      img.src = IMG_BASE_URL + producto.imagen;
+      img.alt = producto.nombre;
+      img.addEventListener('error', function () {
+        this.onerror = null;
+        this.src = FALLBACK_IMG;
+      });
+
+      const badge = getBadge(producto);
+      const badgeEl = node.querySelector('.card-badge');
+      if (badge) {
+        badgeEl.textContent = badge.label;
+        badgeEl.className = 'card-badge absolute top-2 left-2 text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full shadow ' + badge.classes;
+      } else {
+        badgeEl.remove();
+      }
+
+      node.querySelector('.card-code').textContent = producto.codigo;
+      node.querySelector('.card-name').textContent = producto.nombre;
+      node.querySelector('.card-brand').textContent = producto.marca || '';
+
+      const priceEl = node.querySelector('.card-price');
+      const precioFinal = getPrecioFinal(producto);
+      if (precioFinal <= 0) {
+        priceEl.innerHTML = '<span class="text-sm font-semibold text-texto/50 italic">Consultar precio</span>';
+      } else if (Number(producto.descuento) > 0) {
+        priceEl.innerHTML =
+          '<span class="text-[11px] text-texto/40 line-through mr-1.5">' + formatPrecio(producto.precio) + '</span>' +
+          '<span class="text-base font-extrabold text-rojo">' + formatPrecio(precioFinal) + '</span>';
+      } else {
+        priceEl.innerHTML = '<span class="text-base font-extrabold text-texto">' + formatPrecio(precioFinal) + '</span>';
+      }
+
+      node.querySelector('.card-whatsapp-btn').addEventListener('click', function () {
+        window.open(buildWhatsappUrl(producto), '_blank');
+      });
+
+      grid.appendChild(node);
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // 5. BÚSQUEDA EN TIEMPO REAL
+  // ---------------------------------------------------------------
+  searchInput.addEventListener('input', function (e) {
+    searchTerm = e.target.value;
+    renderProducts();
+  });
+
+  // ---------------------------------------------------------------
+  // 6. CARGA DE PRODUCTOS DESDE productos.json
+  // ---------------------------------------------------------------
+  function showState(state) {
+    loadingState.classList.toggle('hidden', state !== 'loading');
+    loadingState.classList.toggle('flex', state === 'loading');
+    errorState.classList.toggle('hidden', state !== 'error');
+    errorState.classList.toggle('flex', state === 'error');
+    grid.classList.toggle('hidden', state !== 'ready');
+    resultsCount.classList.toggle('hidden', state !== 'ready');
+  }
+
+  function loadProducts() {
+    showState('loading');
+    fetch(PRODUCTS_URL)
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.json();
+      })
+      .then(function (data) {
+        PRODUCTS = data.productos || [];
+        showState('ready');
+        renderProducts();
+      })
+      .catch(function (err) {
+        console.error('No se pudo cargar productos.json:', err);
+        showState('error');
+      });
+  }
+
+  retryBtn.addEventListener('click', loadProducts);
+
+  // ---------------------------------------------------------------
+  // 7. INICIALIZACIÓN
+  // ---------------------------------------------------------------
+  loadProducts();
+})();
+</script>
+
+</body>
+</html>
